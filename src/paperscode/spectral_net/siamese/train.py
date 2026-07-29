@@ -63,8 +63,16 @@ class SiameseTwinTrainer(Trainer):
             torch.zeros(num_pos, device=self.device),
             torch.ones(num_neg, device=self.device)
         ])
+        loss = contrastive_loss(z1, z2, labels) 
+        dist = torch.norm(z1 - z2, p=2, dim=1)
 
-        return contrastive_loss(z1, z2, labels)
+        metrics = {
+            "loss": loss.item(),
+            "pos_dist": dist[labels == 0].mean().item(),
+            "neg_dist": dist[labels == 1].mean().item(),
+        }
+
+        return loss, metrics
 
 if __name__=='__main__':
     # parser = argparse.ArgumentParser()
