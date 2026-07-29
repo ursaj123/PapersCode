@@ -5,6 +5,6 @@ backprop/
 *.png
 
 master_prompt.md
-.vscode
+.vscode/
 books_and_papers
 
