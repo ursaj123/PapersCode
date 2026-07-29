@@ -1,0 +1,15 @@
+{
+    "json.schemas": [],
+    
+    // "python.analysis.extraPaths": [
+    //     "${workspaceFolder}"
+    // ],
+    // "python.analysis.packageIndexDepths": [
+    //     {
+    //         "name": "",
+    //         "depth": 5
+    //     }
+    // ],
+
+    // "python.analysis.importFormat": "relative"
+}

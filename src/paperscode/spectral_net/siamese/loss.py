@@ -1,0 +1,8 @@
+import torch
+def contrastive_loss(x1, x2, y, margin=2.0):
+    # y=0 means same class, and y=1 mean different class
+    # x1 -> (B, d), x2 -> (B, d), y -> (B, )
+    dist = torch.norm(x1-x2, ord=2, axis=1, keepdims=False) # (B, )
+    return torch.mean(
+        (1-y)*dist**2 + y*(torch.maximum(0, margin-dist))**2
+    ) # (1, )

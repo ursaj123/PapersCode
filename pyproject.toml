@@ -1,0 +1,12 @@
+[project]
+name = "paperscode"
+version = "0.1.0"
+description = "A Python project for paperscode."
+authors = [ { name = "Ayush Jangid" } ]
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [ ]
+
+[build-system]
+requires = ["setuptools>=65.0", "wheel"]
+build-backend = "setuptools.build_meta"

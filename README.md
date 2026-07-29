@@ -1,0 +1,4 @@
+<!-- OKay, so let's begin
+This is the paper called spectralnet [1801.01587v6.pdf](/home/ayush-jangid/Desktop/PapersCode/spectral_net/1801.01587v6.pdf) 
+
+I want to code this paper from scratch, so outline the algorithm, networ karchitecture, data processing pipeline and all, from readme, loss function , steps and everything, so I just have to focus on coding these things, so yeah write a markdown file regrading this, and I would implement such files one by one, so that I can implement fully functional paper! -->

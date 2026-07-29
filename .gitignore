@@ -1,0 +1,10 @@
+git/
+shell/
+backprop/
+*.pdf
+*.png
+
+master_prompt.md
+.vscode
+books_and_papers
+
