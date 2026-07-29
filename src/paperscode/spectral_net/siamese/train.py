@@ -16,6 +16,7 @@ class SiameseTwinTrainer(Trainer):
     def compute_loss(self, batch):
         x, y = batch
         x = x.to(self.device)
+        x = x.reshape(x.shape[0], -1)
         y = y.to(self.device)
 
         bs = x.shape[0]
