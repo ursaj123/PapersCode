@@ -1,5 +1,5 @@
 
-## How to use this
+## Setup
 
 To replicate any paper and experiments, open kaggle or colab, and paste the following
 ```python
@@ -14,17 +14,34 @@ if not os.path.exists("paperscode"):
 !pip install -e .
 ```
 
-and then go through readme of specifc paper for further instructions, like for example, see [spectral_net](src/paperscode/spectral_net/), 
-- I've been using most simplest of the datasets for all the training and experimenting purposes.
-- I will be using MNIST for this paper (thus there is no data.py files for data preprocessing and all, I've been using it directly through torchvision datasets via downloading it.)
-- First we train the siamese network (optional though, see [siamese](src/paperscode/spectral_net/siamese/) for more details),
-    ```shell
-    !python src/paperscode/spectral_net/siamese/train.py
+
+There are central files which I would be used for almost every paper, check [common](src/paperscode/common) for that, 
+- Like [trainer.py](src/paperscode/common/trainer.py), the training args look like
     ```
-- The results are stored in 
+    python train.py \
+    --run-name spectral_v2 \
+    --output-dir runs \
+    --max-epochs 300 \
+    --batch-size 1024 \
+    --lr 5e-4 \
+    --optimizer adamw \
+    --scheduler cosine \
+    --precision bfloat16 \
+    --ema \
+    --no-early-stopping \
+    --save-best \
+    --log-level INFO \
+    --device cuda
+    ```
+    see [cli.py](src/paperscode/common/cli.py) for more details and default parameters.
+
+- I'll be adding common CustomDataset and CustomLosses , online batch processing patterns.
+
+As of now, I've been using most simplest of the datasets for all the training and experimenting purposes.
     
 
+Go through readme of specifc paper for further instructions, like for example, see [spectral_net](src/paperscode/spectral_net/), 
 
-Most of these papers are 
+
 
 
