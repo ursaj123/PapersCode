@@ -64,8 +64,9 @@ class SiameseTwinTrainer(Trainer):
             torch.zeros(num_pos, device=self.device),
             torch.ones(num_neg, device=self.device)
         ])
-        
-        loss = self.model.module.contrastive_loss(z1, z2, labels) 
+
+        model = self.model.module if hasattr(self.model, "module") else self.model
+        loss = model.contrastive_loss(z1, z2, labels) 
         dist = torch.norm(z1 - z2, p=2, dim=1)
 
         metrics = {
@@ -86,8 +87,8 @@ if __name__=='__main__':
     parser = argparse.ArgumentParser()
     parser = add_trainer_args(parser)
     
-    # paper = parser.add_argument_group('SiameseTwin')
-    # paper.add_argument("--k")
+    # group = parser.add_argument_group('SiameseTwin')
+    # group.add_argument("--k")
 
     args = parser.parse_args()
     cfg = trainer_config_from_args(args)

@@ -6,10 +6,6 @@ from tqdm import tqdm
 
 from sklearn.cluster import KMeans
 
-def calculate_mu_and_sigma_for_train_data():
-    
-    pass
-
 def kmeans_eval(loader, model, device=torch.device(
         'cuda' if torch.cuda.is_available() else 'cpu'
 )):

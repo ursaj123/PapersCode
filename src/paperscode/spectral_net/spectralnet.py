@@ -48,14 +48,14 @@ class SpectralNet(nn.Module):
 
     def pairwise_dist(self, x):
         # calculate ||x_i-x-j||^2
-        y = x.clone()
+        y = x
         norms = torch.sum(y**2, dim=-1) # (B, )
         cdist = norms[:, None] - 2*y@y.T +  norms[None, :]   # (B, B)
         cdist = cdist.clamp_min(0.0)
         return cdist
 
     def spectral_loss(self, x_inp, spec_op):
-        y = x_inp.clone()
+        y = x_inp
         if self.siamese is not None:
             with torch.no_grad():
                 y = self.siamese(y)

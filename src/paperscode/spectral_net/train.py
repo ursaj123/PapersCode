@@ -2,7 +2,6 @@ import numpy as np
 import torch
 import torch.nn as nn
 import matplotlib.pyplot as plt
-import argparse
 from torchvision import transforms, datasets
 from torch.utils.data import Dataset, DataLoader
 import argparse
@@ -20,8 +19,8 @@ class SpectralNetTrainer(Trainer):
         x, _ = batch
         x = x.reshape(x.shape[0], -1).to(self.device)
         spec_op = self.model(x)
-        loss = self.model.module.spectral_loss(x, spec_op, )
-        
+
+        loss = self.model.module.spectral_loss(x, spec_op) if hasattr(self.model, "module") else self.model.spectral_loss(x, spec_op)
         metrics = {
             "loss": loss.item(),
         }
@@ -37,11 +36,12 @@ if __name__=='__main__':
 
     parser = argparse.ArgumentParser()
     parser = add_trainer_args(parser)
-    
-    parser = parser.add_argument_group('SpectralNet')
-    parser.add_argument("--siamese-path", type='str')
-    parser.add_argument("--affinity-matrix-clusters", type=int, default=10)
-    parser.add_argument("--output_clusters", type=int, default=10)
+
+    group = parser.add_argument_group("SpectralNet")
+
+    group.add_argument("--siamese-path", type=str)
+    group.add_argument("--affinity-matrix-clusters", type=int, default=10)
+    group.add_argument("--output-clusters", type=int, default=10)
 
     args = parser.parse_args()
     cfg = trainer_config_from_args(args)
