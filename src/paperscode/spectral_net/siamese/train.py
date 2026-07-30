@@ -5,12 +5,14 @@ import matplotlib.pyplot as plt
 import argparse
 from torchvision import transforms, datasets
 from torch.utils.data import Dataset, DataLoader
+import argparse
 
 
 
 from paperscode.spectral_net.siamese.arch import SiameseTwin
 from paperscode.spectral_net.siamese.loss import contrastive_loss
-from paperscode.trainer import Trainer, TrainerConfig
+from paperscode.common.trainer import Trainer, TrainerConfig
+from paperscode.common.cli import add_trainer_args, trainer_config_from_args
 
 class SiameseTwinTrainer(Trainer):
     def compute_loss(self, batch):
@@ -75,15 +77,24 @@ class SiameseTwinTrainer(Trainer):
         return loss, metrics
 
 if __name__=='__main__':
-    # parser = argparse.ArgumentParser()
-    # parser.add_argument(
-    #     "--lr", type=float, default=0.001
-    # )
-    # parser.add_argument("--epochs", type=float, default=20)
-    # parser.add_argument("--bs", type=int, default=32, help="Batch Size")
-    # parser.add_argument("--inputdim", type=int, default=784, help='Data input size')
-    # args = parser.parse_args()
+    '''
+    we can add more args specific to siamese twin
+    but since I'm using a specific dataset, with everything fixed
+    I would not take any arguments related to siamesetwins
+    '''
 
+    parser = argparse.ArgumentParser()
+    parser = add_trainer_args(parser)
+    
+    # paper = parser.add_argument_group('SiameseTwin')
+    # paper.add_argument("--k")
+
+    args = parser.parse_args()
+    cfg = trainer_config_from_args(args)
+
+
+    
+    # loading dataset and dataloaders
     tf = transforms.Compose([transforms.ToTensor(),
                                   transforms.Normalize((0.1307,), (0.3081,))])
     train_ds = datasets.MNIST("data", train=True,  download=True, transform=tf)
@@ -91,30 +102,7 @@ if __name__=='__main__':
     train_loader = DataLoader(train_ds, batch_size=256, shuffle=True,  num_workers=4)
     val_loader   = DataLoader(val_ds,   batch_size=512, shuffle=False, num_workers=4)
 
-    cfg = TrainerConfig(
-        output_dir="runs",
-        run_name="mnist_test",
-        max_epochs=5,
-        lr=1e-3,
-        optimizer="adamw",
-        precision="bfloat16",           # bfloat16 AMP
-        grad_clip_norm=1.0,
-        scheduler="cosine",
-        early_stopping=True,
-        early_stopping_monitor="val_loss",
-        early_stopping_patience=3,
-        save_best=True,
-        ema=True,
-        ema_decay=0.999,
-        seed=42,
-        # Logging
-        use_log_file=True,              # → runs/mnist_test/trainer.log
-        log_level="INFO",
-        # Progress bars (requires: pip install tqdm)
-        progress_bar=True,              # per-batch bar with live loss
-        progress_bar_epochs=True,       # outer epoch bar
-    )
-
+    
 
     model = SiameseTwin()
     trainer = SiameseTwinTrainer(model, cfg)
