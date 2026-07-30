@@ -9,7 +9,7 @@ import argparse
 
 
 
-from paperscode.spectral_net.spectralnet import SpectralNet
+from paperscode.spectral_net.spectralnet import SpectralNet, pairwise_dist, spectral_loss
 from paperscode.spectral_net.utils import *
 from paperscode.common.trainer import Trainer, TrainerConfig
 from paperscode.common.cli import add_trainer_args, trainer_config_from_args
@@ -18,8 +18,8 @@ class SpectralNetTrainer(Trainer):
     def compute_loss(self, batch):
         x, _ = batch
         x = x.reshape(x.shape[0], -1).to(self.device)
-        spec_op = self.model(x)
-        loss = self.model.spectral_loss(x, spec_op)
+        siamese_op, spec_op = self.model(x)
+        loss = spectral_loss(siamese_op, spec_op, )
         
         metrics = {
             "loss": loss.item(),
@@ -40,11 +40,14 @@ if __name__=='__main__':
     parser = parser.add_argument_group('SpectralNet')
     parser.add_argument("--siamese-path", type='str')
     parser.add_argument("--affinity-matrix-clusters", type=int, default=10)
-    parser.add_argument("--output_clusters", type=int, default=10)
-
+    parser.add_argument("--output-clusters", type=int, default=10)
+    
     args = parser.parse_args()
     cfg = trainer_config_from_args(args)
-
+    global siamese_path, affinity_matrix_clusters, output_clusters
+    siamese_path = args.siamese_path
+    affinity_matrix_clusters = args.affinity_matrix_clusters
+    output_clusters = args.output_clusters
 
     
     # loading dataset and dataloaders
