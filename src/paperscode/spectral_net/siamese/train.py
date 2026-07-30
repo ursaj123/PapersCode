@@ -65,7 +65,7 @@ class SiameseTwinTrainer(Trainer):
             torch.ones(num_neg, device=self.device)
         ])
         
-        loss = self.model.contrastive_loss(z1, z2, labels) 
+        loss = self.model.module.contrastive_loss(z1, z2, labels) 
         dist = torch.norm(z1 - z2, p=2, dim=1)
 
         metrics = {

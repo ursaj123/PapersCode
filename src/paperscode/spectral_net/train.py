@@ -13,13 +13,14 @@ from paperscode.spectral_net.spectralnet import SpectralNet
 from paperscode.spectral_net.utils import *
 from paperscode.common.trainer import Trainer, TrainerConfig
 from paperscode.common.cli import add_trainer_args, trainer_config_from_args
+from torch.nn.parallel import DistributedDataParallel as DDP
 
 class SpectralNetTrainer(Trainer):
     def compute_loss(self, batch):
         x, _ = batch
         x = x.reshape(x.shape[0], -1).to(self.device)
         spec_op = self.model(x)
-        loss = self.model.spectral_loss(x, spec_op)
+        loss = self.model.module.spectral_loss(x, spec_op, )
         
         metrics = {
             "loss": loss.item(),
