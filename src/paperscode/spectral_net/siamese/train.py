@@ -10,7 +10,6 @@ import argparse
 
 
 from paperscode.spectral_net.siamese.arch import SiameseTwin
-from paperscode.spectral_net.siamese.loss import contrastive_loss
 from paperscode.common.trainer import Trainer, TrainerConfig
 from paperscode.common.cli import add_trainer_args, trainer_config_from_args
 
@@ -65,7 +64,8 @@ class SiameseTwinTrainer(Trainer):
             torch.zeros(num_pos, device=self.device),
             torch.ones(num_neg, device=self.device)
         ])
-        loss = contrastive_loss(z1, z2, labels) 
+        
+        loss = self.model.contrastive_loss(z1, z2, labels) 
         dist = torch.norm(z1 - z2, p=2, dim=1)
 
         metrics = {

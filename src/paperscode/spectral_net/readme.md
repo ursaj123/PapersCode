@@ -7,7 +7,7 @@
 
 ## Simple Experiments
 - I will be using MNIST for this paper (thus there is no data.py files for data preprocessing and all, I've been using it directly through torchvision datasets via downloading it.)
-- First we train the siamese network (optional though, see [siamese](src/paperscode/spectral_net/siamese/) for more details),
+- First we train the siamese network (optional though, see [siamese](siamese/) for more details),
     ```
     python src/paperscode/spectral_net/siamese/train.py \
     --run-name siamese_twin_training_for_spectral_clustering_on_mnist \

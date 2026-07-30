@@ -7,9 +7,9 @@ src/paperscode/backprop/
 *.pdf
 *.png
 
-src/paperscode/**/master_prompt.md
+master_prompt.md
 
 books_and_papers/
 src/paperscode/**/runs/
-src/paperscode/**/implementations.md
+src/paperscode/**/0_implementations.md
 

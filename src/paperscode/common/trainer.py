@@ -538,18 +538,77 @@ class Trainer(ABC):
         train_loader: DataLoader,
         val_loader: Optional[DataLoader] = None,
         resume_from: Optional[str] = None,
+        extra_epochs: Optional[int] = None,
+        finetune_from: Optional[str] = None,
     ):
-        # Build optimizer + scheduler now that we know total_steps
+        """
+        Train the model.
+
+        Two distinct modes for starting from an existing checkpoint:
+
+        ── RESUME (`resume_from`) ────────────────────────────────────────────
+        Continue an interrupted training run. Restores EVERYTHING:
+          weights, optimizer state (momentum/adam buffers), scheduler state,
+          scaler, EMA, global_step, epoch counter, history, best metric.
+        Training continues from where it left off — logs are continuous.
+
+          trainer.fit(train_loader, val_loader,
+                      resume_from="runs/exp/last.pt")
+
+          # Train 20 more epochs on top of whatever epoch was saved:
+          trainer.fit(train_loader, val_loader,
+                      resume_from="runs/exp/last.pt", extra_epochs=20)
+
+        ── FINETUNE (`finetune_from`) ────────────────────────────────────────
+        Start fresh training using pretrained weights as initialization.
+        Restores ONLY the model weights. Everything else is fresh:
+          optimizer (no momentum history), scheduler (restarts from epoch 0),
+          history (empty), epoch counter (0), best metric (reset).
+        Use this when: changing LR, changing dataset, transfer learning,
+        running an ablation from the same pretrained base.
+
+          trainer.fit(train_loader, val_loader,
+                      finetune_from="runs/pretrain/best.pt")
+
+        Args:
+            train_loader:   training DataLoader
+            val_loader:     optional validation DataLoader
+            resume_from:    checkpoint path for RESUME (full state restored)
+            extra_epochs:   when resuming, train this many MORE epochs on top.
+                            e.g. saved at epoch 30, extra_epochs=20 → runs to 50.
+                            Ignored when finetune_from is used.
+            finetune_from:  checkpoint path for FINETUNE (weights only)
+        """
+        assert not (resume_from and finetune_from), \
+            "Pass either resume_from OR finetune_from, not both."
+
+        # Build optimizer + scheduler (fresh every time)
         self.optimizer = build_optimizer(self.model, self.cfg)
         steps_per_epoch = len(train_loader) // self.cfg.grad_accumulation_steps
         total_steps = steps_per_epoch * self.cfg.max_epochs
         self.scheduler = build_scheduler(self.optimizer, self.cfg, total_steps)
 
         if resume_from:
-            self._load_checkpoint(resume_from)
+            # ── RESUME: restore full state ─────────────────────────────────
+            self._resume_checkpoint(resume_from)
+            if extra_epochs is not None:
+                self.cfg.max_epochs = self.current_epoch + extra_epochs
+                log.info(f"extra_epochs={extra_epochs} → "
+                         f"training until epoch {self.cfg.max_epochs}")
+            mode_str = f"Resuming from epoch {self.current_epoch}"
+
+        elif finetune_from:
+            # ── FINETUNE: weights only, everything else stays fresh ────────
+            self._finetune_checkpoint(finetune_from)
+            mode_str = "Finetuning from pretrained weights (fresh optimizer + history)"
+
+        else:
+            mode_str = "Starting fresh"
 
         self._fire("on_train_start")
-        log.info(f"Starting training. Output dir: {self.output_dir}")
+        log.info(f"{mode_str}. "
+                 f"Epochs {self.current_epoch}→{self.cfg.max_epochs}. "
+                 f"Output: {self.output_dir}")
         log.info(f"Device: {self.device} | Precision: {self.cfg.precision} | "
                  f"Strategy: {self.cfg.strategy}")
         if self._log_file_path:
@@ -717,25 +776,111 @@ class Trainer(ABC):
         path = self.output_dir / filename
         torch.save(state, path)
 
-    def _load_checkpoint(self, path: str):
-        log.info(f"Resuming from {path}")
-        ckpt = torch.load(path, map_location=self.device)
+    def _resume_checkpoint(self, path: str):
+        """
+        RESUME — restore full training state.
+        After this call, training continues as if it was never interrupted:
+          - model weights
+          - optimizer state (Adam/SGD momentum buffers, step counts)
+          - scheduler state (last_epoch, base_lrs, internal counters)
+          - GradScaler state (float16 only)
+          - EMA weights
+          - epoch counter → training loop starts from the next epoch
+          - global_step
+          - history → new epochs append to the old timeline
+          - best_metric → checkpointing stays consistent with previous run
+        """
+        log.info(f"[RESUME] Loading full state from {path}")
+        ckpt = torch.load(path, map_location=self.device, weights_only=False)
+
+        # Model
         raw = self.model.module if hasattr(self.model, "module") else self.model
         raw.load_state_dict(ckpt["model"])
+
+        # Optimizer — restores Adam/SGD internal buffers (momentum, exp_avg, etc.)
         if self.optimizer and "optimizer" in ckpt:
             self.optimizer.load_state_dict(ckpt["optimizer"])
+
+        # Scheduler — restores last_epoch and all internal LR state
+        # This means LR continues exactly where it left off, not from epoch 0
         if self.scheduler and "scheduler" in ckpt:
             self.scheduler.load_state_dict(ckpt["scheduler"])
+
+        # GradScaler (float16 AMP only)
         if self.scaler and "scaler" in ckpt:
             self.scaler.load_state_dict(ckpt["scaler"])
+
+        # EMA shadow weights
         if self.ema and "ema" in ckpt:
             self.ema.load_state_dict(ckpt["ema"])
+
+        # Step/epoch counters — loop starts from the NEXT epoch
         self.current_epoch = ckpt.get("epoch", 0) + 1
-        self.global_step = ckpt.get("global_step", 0)
+        self.global_step   = ckpt.get("global_step", 0)
+
+        # History — find history.json next to checkpoint, then fall back to output_dir
+        for history_dir in [Path(path).parent, self.output_dir]:
+            history_path = history_dir / "history.json"
+            if history_path.exists():
+                with open(history_path) as f:
+                    self._history = json.load(f)
+                log.info(f"[RESUME] Restored {len(self._history)} epoch history "
+                         f"entries from {history_path}")
+                break
+        else:
+            log.warning("[RESUME] history.json not found — history will restart "
+                        "from the resumed epoch")
+
+        # Best metric — so save_best logic is consistent with previous run
+        if "metrics" in ckpt:
+            monitor_val = ckpt["metrics"].get(self.cfg.checkpoint_monitor)
+            if monitor_val is not None:
+                self._best_metric = monitor_val
+                log.info(f"[RESUME] Restored best "
+                         f"{self.cfg.checkpoint_monitor}={monitor_val:.4f}")
+
+        log.info(f"[RESUME] Continuing from epoch {self.current_epoch} "
+                 f"(global_step={self.global_step})")
+
+    def _finetune_checkpoint(self, path: str):
+        """
+        FINETUNE — load pretrained weights only, start everything else fresh.
+        After this call:
+          - model weights are loaded from the checkpoint
+          - optimizer: fresh (no momentum history from pretraining)
+          - scheduler: fresh (starts from epoch 0 of the new LR schedule)
+          - scaler: fresh
+          - EMA: re-initialized from the loaded weights
+          - epoch counter: 0 (new training run)
+          - global_step: 0
+          - history: empty (new run's own history)
+          - best_metric: reset (new run competes against itself)
+
+        Use when: transfer learning, changing dataset, changing LR after
+        pretraining, running ablations from a shared pretrained base.
+        """
+        log.info(f"[FINETUNE] Loading weights only from {path}")
+        ckpt = torch.load(path, map_location=self.device, weights_only=False)
+
+        raw = self.model.module if hasattr(self.model, "module") else self.model
+        raw.load_state_dict(ckpt["model"])
+
+        # Re-initialize EMA from the newly loaded weights (not from ckpt EMA)
+        # because the new training may use a different decay or different LR regime
+        if self.ema is not None:
+            self.ema = ModelEMA(raw, decay=self.cfg.ema_decay)
+
+        # Everything else stays at __init__ defaults:
+        # current_epoch=0, global_step=0, _history=[], _best_metric=inf/-inf
+        # optimizer/scheduler were already built fresh in fit() before this call
+
+        saved_epoch = ckpt.get("epoch", "?")
+        log.info(f"[FINETUNE] Weights loaded (checkpoint was at epoch {saved_epoch}). "
+                 f"Optimizer, scheduler, and history are fresh.")
 
     def load_best(self):
-        """Load best checkpoint weights into model (for inference)."""
-        self._load_checkpoint(str(self.output_dir / "best.pt"))
+        """Load best checkpoint weights into model (for inference). Weights only."""
+        self._finetune_checkpoint(str(self.output_dir / "best.pt"))
         return self
 
     # ── Multi-GPU ─────────────────────────────────────────────────────────
@@ -948,6 +1093,7 @@ def _example():
         # Logging
         use_log_file=True,              # → runs/mnist_test/trainer.log
         log_level="INFO",
+        # Progress bars (requires: pip install tqdm)
         progress_bar=True,              # per-batch bar with live loss
         progress_bar_epochs=True,       # outer epoch bar
     )
@@ -971,6 +1117,5 @@ def _example():
     print("Best val_loss:", trainer._best_metric)
 
 
-# if __name__ == "__main__":
-#     # _example()
-#     pass
+if __name__ == "__main__":
+    _example()
