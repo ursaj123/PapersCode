@@ -1,10 +1,15 @@
-git/
-shell/
-backprop/
+**/pycache/
+.vscode/
+src/paperscode/git
+src/paperscode/shell
+src/paperscode/backprop/
+
 *.pdf
 *.png
 
-master_prompt.md
-.vscode/
-books_and_papers
+src/paperscode/**/master_prompt.md
+
+books_and_papers/
+src/paperscode/**/runs/
+src/paperscode/**/implementations.md
 
