@@ -2,7 +2,8 @@
 
 - Paper [SpectralNet: Spectral Clustering using Deep Neural Networks
 ](https://arxiv.org/pdf/1801.01587)
-- Check out blog for more deep dive on paper - [Research Roadmap](https://ursaj123.github.io/posts/Machine-Learning-Research-Roadmap/)
+- Check out blog for more deep dive on paper - [SpectralNet: Teaching a Neural Network to Cluster Like an Eigenvector Solver
+](https://ursaj123.github.io/posts/Spectral-Net/)
 
 
 ## Simple Experiments
