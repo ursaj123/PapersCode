@@ -12,6 +12,7 @@ import argparse
 from paperscode.spectral_net.siamese.arch import SiameseTwin
 from paperscode.common.trainer import Trainer, TrainerConfig
 from paperscode.common.cli import add_trainer_args, trainer_config_from_args
+from paperscode.spectral_net.utils import kmeans_eval, analyze_training_metrics
 
 class SiameseTwinTrainer(Trainer):
     def compute_loss(self, batch):
@@ -110,6 +111,9 @@ if __name__=='__main__':
     trainer.fit(train_loader, val_loader)
     # trainer.load_best()
     print("Best val_loss:", trainer._best_metric)
+
+
+    
 
 
 

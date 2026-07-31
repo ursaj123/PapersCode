@@ -57,7 +57,7 @@ if __name__=='__main__':
     val_loader   = DataLoader(val_ds,   batch_size=512, shuffle=False, num_workers=4)
 
     
-
+    # siamese path is basically the checkpoint path of siamese
     model = SpectralNet(
         siamese_path=args.siamese_path,
         affinity_matrix_clusters = args.affinity_matrix_clusters,
@@ -67,6 +67,34 @@ if __name__=='__main__':
     trainer.fit(train_loader, val_loader)
     # trainer.load_best()
     print("Best val_loss:", trainer._best_metric)
+
+    del model, trainer
+
+    # Let's analyze some metrics
+    siamese_dir_path = args.siamese_path[:-8] # removing /best.pt from the end
+    spectral_path = args.output_dir + '/' + args.run_name
+
+    analyze_training_metrics(siamese_dir_path)
+    analyze_training_metrics(spectral_path)
+
+    # clustering results on spectral net model
+    device = 'cuda'
+    ckpt = torch.load(spectral_path + '/best.pt', map_location='cpu')
+    model = SpectralNet(
+        siamese_path=args.siamese_path, # args.siamese path is still best.pt path
+        affinity_matrix_clusters = args.affinity_matrix_clusters,
+        output_clusters = args.output_clusters
+    )
+    model.load_state_dict(ckpt['model'])
+    model = model.to(device)
+    model.eval()
+    train_acc = kmeans_eval(model, train_loader, device)
+    val_acc = kmeans_eval(model, val_loader, device)
+
+    print(f"Training accuracy on spectral clustering {train_acc:.4f}")
+    print(f"Validation accuracy on spectral clustering {val_acc:.4f}")
+
+
 
 
 
